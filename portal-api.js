@@ -135,7 +135,7 @@ async function route(req, env, ctx) {
     if (!await limit(env, "login:" + ip, 5, 900)) return json({ error: "Demasiados intentos. Espera 15 minutos." }, 429);
     const input = await body(req);
     if (!await verifyPassword(input.password, env.PASSWORD_RECORD, env.PASSWORD_PEPPER)) return json({ error: "Contrase\xF1a incorrecta." }, 401);
-    const token = randomToken(), expires = now() + 1800;
+    const token = randomToken(), expires = now() + 30 * 86400;
     await env.DB.prepare("INSERT INTO sessions(token_hash,expires) VALUES(?,?)").bind(await hash(token), expires).run();
     return json({ token, expires });
   }
