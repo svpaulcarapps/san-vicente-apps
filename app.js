@@ -37,12 +37,19 @@ $('logout').addEventListener('click',async()=>{try{await api('/auth/logout',{met
 // Reloading deliberately signs out; BFCache must not resurrect private links.
 window.addEventListener('pagehide',()=>{if(accessToken)clearSession();});
 async function loadApps(){const result=await api('/apps',{auth:true});personalApps=result.apps;renderApps();}
+// Dedicated artwork for the two personal tools; other apps keep their configured icon.
+function personalAppIcon(app){
+ const name=app.name.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+ if(name.includes('cuaderno'))return './cuaderno-profesor.png';
+ if(name.includes('asistencia'))return './asistencia.png';
+ return app.icon;
+}
 function renderApps(){
  const list=$('private-list');list.replaceChildren();showMessage('private-message',personalApps.length?'':'No hay aplicaciones personales disponibles.');
  personalApps.forEach(app=>{
   const article=document.createElement('article');article.className='card private-card';
   const link=document.createElement('a');link.className='private-link';link.href=app.url;link.target='_blank';link.rel='noopener noreferrer';link.referrerPolicy='no-referrer';
-  const img=document.createElement('img');img.className='app-icon';img.src=app.icon;img.alt='';
+  const img=document.createElement('img');img.className='app-icon';img.src=personalAppIcon(app);img.alt='';
   const name=document.createElement('strong');name.className='app-name';name.textContent=app.name;link.append(img,name);
   article.append(link);list.append(article);
  });
