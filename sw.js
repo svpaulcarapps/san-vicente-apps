@@ -1,4 +1,4 @@
-const CACHE='svpaul-shell-v19';
+const CACHE='svpaul-shell-v20';
 const SHELL=['./','./index.html','./general-ios.png','./comedor.jpg','./base-datos.png','./justificantes.png','./sustituciones.png','./fichaje.png','./filmoteca.png','./parte-tic.png','./parte-mantenimiento.png','./cuaderno-profesor.png','./asistencia-v2.png','./app.js?v=19','./config.js?v=9','./manifest.webmanifest'];
 const urls=new Set(SHELL.map(path=>new URL(path,self.registration.scope).href));
 self.addEventListener('install',event=>{event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(SHELL)));self.skipWaiting();});
@@ -6,7 +6,7 @@ self.addEventListener('activate',event=>{event.waitUntil(caches.keys().then(keys
 self.addEventListener('fetch',event=>{
  // Only named public shell files can enter Cache Storage. No API or private data.
  if(event.request.method!=='GET'||!urls.has(event.request.url))return;
- event.respondWith(fetch(event.request).then(response=>{if(response.ok){const copy=response.clone();event.waitUntil(caches.open(CACHE).then(cache=>cache.put(event.request,copy)));}return response;}).catch(()=>caches.match(event.request).then(cached=>cached||Response.error())));
+ event.respondWith(fetch(event.request,{cache:'no-store'}).then(response=>{if(response.ok){const copy=response.clone();event.waitUntil(caches.open(CACHE).then(cache=>cache.put(event.request,copy)));}return response;}).catch(()=>caches.match(event.request).then(cached=>cached||Response.error())));
 });
 function seenEvent(id){return new Promise((resolve,reject)=>{
  const open=indexedDB.open('svpaul-push-events',1);open.onupgradeneeded=()=>open.result.createObjectStore('seen');open.onerror=()=>reject(open.error);
