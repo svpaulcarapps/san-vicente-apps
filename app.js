@@ -41,7 +41,7 @@ async function loadApps(){const result=await api('/apps',{auth:true});personalAp
 function personalAppIcon(app){
  const name=app.name.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
  if(name.includes('cuaderno'))return './cuaderno-profesor.png';
- if(name.includes('asistencia'))return './asistencia.png';
+ if(name.includes('asistencia'))return './asistencia-v2.png';
  return app.icon;
 }
 function renderApps(){
