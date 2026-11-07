@@ -11,10 +11,20 @@ const apiBase=API_BASE.replace(/\/$/,'');
 const $=id=>document.getElementById(id);
 async function api(path,{method='GET',data,auth=false}={}) {
  if(!apiBase)throw new Error('Este servicio estará disponible próximamente.');
- const response=await fetch(apiBase+path,{method,mode:'cors',cache:'no-store',credentials:'omit',referrerPolicy:'no-referrer',headers:{...(data?{'Content-Type':'application/json'}:{}),...(auth?{Authorization:'Bearer '+accessToken}:{})},body:data?JSON.stringify(data):undefined});
- const result=await response.json();
- if(response.status===401&&auth){clearSession();throw new Error('Tu sesión ha caducado. Vuelve a entrar en Mis apps.');}
- if(!response.ok)throw new Error(result.error||'No se ha podido completar la solicitud.');return result;
+ const controller=new AbortController();let timer;
+ const timeout=new Promise((_,reject)=>{timer=setTimeout(()=>{controller.abort();reject(new Error('La conexión con el acceso administrador ha tardado demasiado. Comprueba tu conexión y vuelve a pulsar Entrar.'));},15000);});
+ try {
+  return await Promise.race([(async()=>{
+   const response=await fetch(apiBase+path,{method,mode:'cors',cache:'no-store',credentials:'omit',referrerPolicy:'no-referrer',signal:controller.signal,headers:{...(data?{'Content-Type':'application/json'}:{}),...(auth?{Authorization:'Bearer '+accessToken}:{})},body:data?JSON.stringify(data):undefined});
+   const result=await response.json();
+   if(response.status===401&&auth){clearSession();throw new Error('Tu sesión ha caducado. Vuelve a entrar en Mis apps.');}
+   if(!response.ok)throw new Error(result.error||'No se ha podido completar la solicitud.');return result;
+  })(),timeout]);
+ }catch(error){
+  if(controller.signal.aborted)throw new Error('La conexión con el acceso administrador ha tardado demasiado. Comprueba tu conexión y vuelve a pulsar Entrar.');
+  if(error instanceof TypeError)throw new Error('No se puede conectar con el acceso administrador. Prueba con otra conexión (Wi-Fi o datos móviles) y vuelve a entrar.');
+  throw error;
+ }finally{clearTimeout(timer);}
 }
 function showMessage(id,message){$(id).textContent=message;}
 function clearSession(){
@@ -25,13 +35,14 @@ $('open-personal').addEventListener('click',()=>{
  showMessage('login-message','');$('login-dialog').showModal();$('personal-password').focus();
 });
 $('login-form').addEventListener('submit',async e=>{
- e.preventDefault();const button=$('login-submit');button.disabled=true;showMessage('login-message','Comprobando…');
+ e.preventDefault();const button=$('login-submit');button.disabled=true;button.textContent='Comprobando…';showMessage('login-message','Conectando con el acceso administrador…');
  try{
   const result=await api('/auth/login',{method:'POST',data:{password:$('personal-password').value}});
   $('personal-password').value='';accessToken=result.token;
   expiryTimer=setTimeout(clearSession,Math.max(0,result.expires*1000-Date.now()));
+  showMessage('login-message','Contraseña validada. Abriendo tus aplicaciones…');
   await loadApps();$('login-dialog').close();$('personal-section').hidden=false;$('personal-section').scrollIntoView({behavior:'smooth'});
- }catch(err){showMessage('login-message',err.message);$('personal-password').value='';if(accessToken)clearSession();}finally{button.disabled=false;}
+ }catch(err){showMessage('login-message',err.message);$('personal-password').value='';if(accessToken)clearSession();}finally{button.disabled=false;button.textContent='Entrar';}
 });
 $('logout').addEventListener('click',async()=>{try{await api('/auth/logout',{method:'POST',auth:true});}catch{}finally{clearSession();}});
 // Reloading deliberately signs out; BFCache must not resurrect private links.
