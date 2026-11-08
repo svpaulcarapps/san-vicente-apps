@@ -126,6 +126,7 @@ async function sendWebPush(endpoint, payload) {
   }
 }
 async function route(req, env, ctx) {
+  if(new URL(req.url).pathname.startsWith('/native/'))return nativeDataRoute(req,env);
   if(new URL(req.url).pathname.startsWith('/tic/'))return ticRoute(req,env,ctx);
   const url = new URL(req.url), path = url.pathname;
   if (path === "/health" && req.method === "GET") return json({ ok: true });
@@ -365,3 +366,34 @@ export {
   deliver,
   route
 };
+
+// Pasarela autenticada: reenvía operaciones concretas; no almacena datos ni sesiones de las apps.
+const NATIVE_RPC_METHODS={
+ tic:new Set(['obtenerHojasCursos','obtenerPartesTIC','guardarCambiosParte','obtenerCredencialPushTic']),
+ comedor:new Set(['inicial','previsualizarPedido','guardarPedido','entrarComedor','comprobarSesionComedor','salirComedor','resumen','cambiarPedido','guardarFiado','pagarFiado','avisosComedor','leerAviso','prepararPedido','menuDelDia','alumnosComedorDia','ajustesAvisosComedor','guardarDispositivoComedor','generarPdfComedor'])
+};
+async function nativeDataRoute(req,env){
+ const match=new URL(req.url).pathname.match(/^\/native\/(tic|comedor)\/rpc$/);
+ if(!match||req.method!=='POST')return json({error:'Operación no permitida.'},404);
+ const service=match[1],token=(req.headers.get('Authorization')||'').replace(/^Bearer /,'');
+ if(token.length>4096||!/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(token))return json({error:'Conecta tu cuenta del colegio.'},401);
+ let claims;try{claims=JSON.parse(new TextDecoder().decode(unb64(token.split('.')[1])));}catch{return json({error:'Sesión no válida.'},401);}
+ if(claims.aud!=='svpaulcar-native-'+service||!Number.isInteger(claims.exp)||claims.exp<=now()||!Number.isInteger(claims.iat)||claims.iat>now()+30||claims.exp-claims.iat!==21600)return json({error:'La sesión ha caducado. Vuelve a conectar tu cuenta.'},401);
+ const raw=await req.text();if(raw.length>65536)return json({error:'Solicitud demasiado grande.'},413);
+ let input;try{input=JSON.parse(raw);}catch{return json({error:'Solicitud no válida.'},400);}
+ if(!NATIVE_RPC_METHODS[service].has(input.method)||!Array.isArray(input.args)||input.args.length>8)return json({error:'Operación no permitida.'},400);
+ const ip=req.headers.get('CF-Connecting-IP')||'unknown';
+ if(!await limit(env,'native:'+service+':'+await hash(ip),180,60)||!await limit(env,'native-session:'+await hash(token),120,60))return json({error:'Espera unos segundos antes de volver a intentarlo.'},429);
+ const endpoint=service==='tic'?env.TIC_DATA_API_URL:env.COMEDOR_DATA_API_URL;
+ if(!endpoint||!/^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec$/.test(endpoint))return json({error:'La conexión con los datos está en preparación.'},503);
+ const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),55000);
+ try{
+  const response=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({version:1,token,method:input.method,args:input.args}),redirect:'follow',signal:controller.signal});
+  const url=new URL(response.url);if(url.protocol!=='https:'||!(url.hostname==='script.google.com'||url.hostname.endsWith('.googleusercontent.com')))throw Error('Respuesta no válida');
+  if(!response.ok)return json({error:'No se ha podido conectar con los datos del colegio.'},502);
+  const text=await response.text();if(text.length>12000000)return json({error:'El informe es demasiado grande.'},502);
+  let result;try{result=JSON.parse(text);}catch{return json({error:'Google no ha permitido conectar con los datos.'},502);}
+  if(result.ok!==true)return json({error:result.error||'No se pudo completar la operación.'},/sesión|sesion/i.test(result.error||'')?401:400);
+  return json({result:result.result});
+ }catch{return json({error:'No se ha podido conectar. Comprueba la conexión y vuelve a intentarlo.'},502);}finally{clearTimeout(timer);}
+}

@@ -3,14 +3,28 @@
   "main": "portal-api.js",
   "compatibility_date": "2026-11-05",
   "account_id": "cdd91f774a9320d0e412fb88ae107850",
-  "observability": {"enabled": false},
+  "observability": {
+    "enabled": false
+  },
   "vars": {
     "ALLOWED_ORIGIN": "https://svpaulcarapps.github.io",
     "APP_URL": "https://svpaulcarapps.github.io/san-vicente-apps/",
     "PUSH_ENABLED": "true",
-    "PUSH_SUBSCRIPTIONS_ENABLED": "true"
+    "PUSH_SUBSCRIPTIONS_ENABLED": "true",
+    "TIC_DATA_API_URL": "https://script.google.com/macros/s/AKfycbx1wkYk-zlNTPt0Blez21PBOfrInYK4zKegKkU13M67RH_B1ZLGxuU_G5ncPIR1ZO03/exec",
+    "COMEDOR_DATA_API_URL": "https://script.google.com/macros/s/AKfycbxnObCfNEbJFnt8ixfAcZwBnFAxgICo1MTneB8dI-w-eJ5QRuRISMuVixOWC0FFWYnWHg/exec"
   },
-  "d1_databases": [{"binding":"DB","database_name":"svpaulcar-private","database_id":"2fac6de4-7906-471a-a02b-e1ee8f139065"}],
-  "triggers": {"crons":["*/5 * * * *"]},
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "svpaulcar-private",
+      "database_id": "2fac6de4-7906-471a-a02b-e1ee8f139065"
+    }
+  ],
+  "triggers": {
+    "crons": [
+      "*/5 * * * *"
+    ]
+  },
   "preview_urls": false
 }
