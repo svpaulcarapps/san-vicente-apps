@@ -126,6 +126,7 @@ async function sendWebPush(endpoint, payload) {
   }
 }
 async function route(req, env, ctx) {
+  if(new URL(req.url).pathname.startsWith('/tic/'))return ticRoute(req,env,ctx);
   const url = new URL(req.url), path = url.pathname;
   if (path === "/health" && req.method === "GET") return json({ ok: true });
   if (path === "/config" && req.method === "GET") return json({ pushEnabled: env.PUSH_SUBSCRIPTIONS_ENABLED === "true" && Boolean(env.VAPID_PUBLIC_KEY && env.VAPID_PRIVATE_KEY), deliveryEnabled: env.PUSH_ENABLED === "true", publicKey: env.PUSH_SUBSCRIPTIONS_ENABLED === "true" ? env.VAPID_PUBLIC_KEY || "" : "" });
@@ -256,6 +257,73 @@ async function deliver(env) {
     }
   }
 }
+// Avisos TIC: tablas y suscripciones independientes del Compendio.
+const TIC_PUBLIC_JWK = {"kty":"RSA","n":"zsv3bkTinQkIP-em1jClChc4oWRs6kWs9M7WWZZcckae4_4fDc54kRZpwgTLEJrBqZhS8dtoYUoVUVXyKqxjrG8US0Z0xBXydyUzZRcx-FNUoNGZ_q_7GexhE2thmgH9Uj0tI-mOGK9GZ2RPfCTCIrx1DhLo5ajaUdTiFy5tcgooqamTRF0uRNxp9v90nfU2aAsCc7PfKlQ5KVuw6w5aHPbexj13vv7CFtScsVHTDxVRHYv8VlLlx5lr9YeCgleLo395WOBLfr6B0ixPyIFuTYpxHoRsxwsEjjGhIVx2gf0Nrsg_zCVHP06R468WAnKbK2deHuOzY_MQyNFNLZ2EPQ","e":"AQAB"};
+const TIC_APP_URL='https://svpaulcarapps.github.io/control-partes-tic/';
+async function ticClaims(req,kind){
+ const token=(req.headers.get('Authorization')||'').replace(/^Bearer /,'');
+ if(token.length>5000)throw Error('Firma no válida');
+ const parts=token.split('.');if(parts.length!==3)throw Error('Firma necesaria');
+ const header=JSON.parse(new TextDecoder().decode(unb64(parts[0]))),claims=JSON.parse(new TextDecoder().decode(unb64(parts[1])));
+ if(header.alg!=='RS256'||claims.aud!=='partes-tic'||claims.kind!==kind||claims.sub!=='owner'||!Number.isInteger(claims.exp)||!Number.isInteger(claims.iat)||claims.exp<=now()||claims.iat>now()+60||claims.exp-claims.iat>(kind==='device'?28800:600))throw Error('Sesión no válida');
+ const key=await crypto.subtle.importKey('jwk',TIC_PUBLIC_JWK,{name:'RSASSA-PKCS1-v1_5',hash:'SHA-256'},false,['verify']);
+ if(!await crypto.subtle.verify('RSASSA-PKCS1-v1_5',key,unb64(parts[2]),enc2.encode(parts[0]+'.'+parts[1])))throw Error('Firma no válida');return claims;
+}
+async function ticSchema(env){await env.DB.batch([
+ env.DB.prepare("CREATE TABLE IF NOT EXISTS tic_subscriptions(id TEXT PRIMARY KEY,payload TEXT NOT NULL,created INTEGER NOT NULL)"),
+ env.DB.prepare("CREATE TABLE IF NOT EXISTS tic_events(id TEXT PRIMARY KEY,created INTEGER NOT NULL)"),
+ env.DB.prepare("CREATE TABLE IF NOT EXISTS tic_deliveries(event_id TEXT NOT NULL,subscription_id TEXT NOT NULL,status TEXT NOT NULL DEFAULT 'pending',attempts INTEGER NOT NULL DEFAULT 0,retry_after INTEGER NOT NULL DEFAULT 0,PRIMARY KEY(event_id,subscription_id))")]);}
+async function ticRoute(req,env,ctx){
+ const path=new URL(req.url).pathname;
+ if(path==='/tic/config'&&req.method==='GET')return json({publicKey:env.VAPID_PUBLIC_KEY||'',enabled:env.PUSH_ENABLED==='true',appURL:TIC_APP_URL});
+ if(path==='/tic/publish'&&req.method==='POST'){
+  let claim;try{claim=await ticClaims(req,'event');}catch{return json({error:'Firma TIC no válida.'},401);}
+  if(!/^[a-f0-9]{64}$/.test(claim.eventId||''))return json({error:'Parte no válido.'},400);
+  if(env.PUSH_ENABLED!=='true')return json({error:'Avisos desactivados.'},503);
+  await ticSchema(env);const created=now();await env.DB.batch([
+   env.DB.prepare('INSERT OR IGNORE INTO tic_events(id,created) VALUES(?,?)').bind(claim.eventId,created),
+   env.DB.prepare('INSERT OR IGNORE INTO tic_deliveries(event_id,subscription_id) SELECT ?,id FROM tic_subscriptions WHERE created<=(SELECT created FROM tic_events WHERE id=?)').bind(claim.eventId,claim.eventId)]);
+  ctx.waitUntil(ticDeliver(env));return json({ok:true,eventId:claim.eventId},202);
+ }
+ let claim;try{claim=await ticClaims(req,'device');}catch{return json({error:'Abre el panel con tu cuenta autorizada para conectar los avisos.'},401);}
+ await ticSchema(env);
+ if(['/tic/subscriptions','/tic/status','/tic/test'].includes(path)){
+  const sub=cleanSubscription(await body(req)),id=await hash(sub.endpoint);
+  if(path==='/tic/subscriptions'&&req.method==='POST'){
+   await env.DB.prepare('INSERT INTO tic_subscriptions(id,payload,created) VALUES(?,?,?) ON CONFLICT(id) DO UPDATE SET payload=excluded.payload').bind(id,JSON.stringify(sub),now()).run();return json({ok:true});
+  }
+  const row=await env.DB.prepare('SELECT payload FROM tic_subscriptions WHERE id=?').bind(id).first(),stored=row?JSON.parse(row.payload):null;
+  const registered=!!stored&&await equal(stored.keys.auth,sub.keys.auth)&&await equal(stored.keys.p256dh,sub.keys.p256dh);
+  if(path==='/tic/status'&&req.method==='POST')return json({registered,enabled:env.PUSH_ENABLED==='true'});
+  if(path==='/tic/subscriptions'&&req.method==='DELETE'){
+   if(registered)await env.DB.prepare('DELETE FROM tic_subscriptions WHERE id=?').bind(id).run();return json({ok:true});
+  }
+  if(path==='/tic/test'&&req.method==='POST'){
+   if(!registered)return json({error:'Activa antes los avisos en este dispositivo.'},409);
+   if(!await limit(env,'tic-test:'+id,5,900))return json({error:'Espera unos minutos para repetir la prueba.'},429);
+   const payload=await buildPushPayload({data:JSON.stringify({type:'partes-tic-test',eventId:crypto.randomUUID()}),options:{ttl:120,urgency:'high'}},sub,{subject:env.VAPID_SUBJECT,publicKey:env.VAPID_PUBLIC_KEY,privateKey:env.VAPID_PRIVATE_KEY});
+   const response=await sendWebPush(sub.endpoint,payload);return response.status>=200&&response.status<300?json({ok:true},202):json({error:'El dispositivo ha rechazado la prueba (HTTP '+response.status+').'},502);
+  }
+ }
+ return json({error:'Ruta TIC no disponible.'},404);
+}
+async function ticDeliver(env){
+ if(env.PUSH_ENABLED!=='true'||!env.VAPID_PUBLIC_KEY||!env.VAPID_PRIVATE_KEY)return;
+ await ticSchema(env);
+ await env.DB.batch([
+ env.DB.prepare("UPDATE tic_deliveries SET status='pending' WHERE status='sending' AND retry_after<=?").bind(now()),
+ env.DB.prepare('DELETE FROM tic_deliveries WHERE event_id IN (SELECT id FROM tic_events WHERE created<?)').bind(now()-2592000),
+ env.DB.prepare('DELETE FROM tic_events WHERE created<?').bind(now()-2592000)]);
+ const rows=(await env.DB.prepare("SELECT d.event_id,d.subscription_id,d.attempts,s.payload FROM tic_deliveries d JOIN tic_subscriptions s ON s.id=d.subscription_id WHERE d.status='pending' AND d.retry_after<=? AND d.attempts<5 LIMIT 30").bind(now()).all()).results;
+ for(const row of rows){
+  const claim=await env.DB.prepare("UPDATE tic_deliveries SET status='sending',retry_after=? WHERE event_id=? AND subscription_id=? AND status='pending'").bind(now()+300,row.event_id,row.subscription_id).run();if(!claim.meta.changes)continue;
+  let status=0;try{const sub=cleanSubscription(JSON.parse(row.payload));const payload=await buildPushPayload({data:JSON.stringify({type:'partes-tic',eventId:row.event_id}),options:{ttl:86400,urgency:'high'}},sub,{subject:env.VAPID_SUBJECT,publicKey:env.VAPID_PUBLIC_KEY,privateKey:env.VAPID_PRIVATE_KEY});status=(await sendWebPush(sub.endpoint,payload)).status;}catch{}
+  if(status===404||status===410){await env.DB.prepare('DELETE FROM tic_subscriptions WHERE id=?').bind(row.subscription_id).run();}
+  const done=status>=200&&status<300,terminal=status>=400&&status<500&&status!==429;
+  await env.DB.prepare('UPDATE tic_deliveries SET status=?,attempts=attempts+1,retry_after=? WHERE event_id=? AND subscription_id=?').bind(done?'sent':terminal||row.attempts>=4?'failed':'pending',now()+Math.min(3600,60*2**row.attempts),row.event_id,row.subscription_id).run();
+ }
+}
+
 var worker_default = {
   async fetch(req, env, ctx) {
     const origin = req.headers.get("Origin");
@@ -289,6 +357,7 @@ var worker_default = {
       env.DB.prepare("DELETE FROM events WHERE created<?").bind(now() - 2592e3)
     ]);
     ctx.waitUntil(deliver(env));
+    ctx.waitUntil(ticDeliver(env));
   }
 };
 export {
