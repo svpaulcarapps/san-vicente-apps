@@ -4,7 +4,7 @@
   "short_name": "SVPAULCAR Apps",
   "lang": "es",
   "start_url": "./",
-  "scope": "./",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#f6f8fb",
   "theme_color": "#004379",

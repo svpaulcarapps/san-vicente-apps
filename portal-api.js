@@ -126,6 +126,8 @@ async function sendWebPush(endpoint, payload) {
   }
 }
 async function route(req, env, ctx) {
+  if(new URL(req.url).pathname==='/ios/compendio.mobileconfig'&&req.method==='GET'){const profile=await fetch('https://svpaulcarapps.github.io/san-vicente-apps/compendio-iphone.mobileconfig',{redirect:'error'});if(!profile.ok)return json({error:'El acceso de iPhone está en preparación.'},503);return new Response(profile.body,{headers:{'Content-Type':'application/x-apple-aspen-config','Content-Disposition':'attachment; filename="compendio-iphone.mobileconfig"','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}});}
+
   if(new URL(req.url).pathname.startsWith('/native/'))return nativeDataRoute(req,env);
   if(new URL(req.url).pathname.startsWith('/tic/'))return ticRoute(req,env,ctx);
   const url = new URL(req.url), path = url.pathname;
