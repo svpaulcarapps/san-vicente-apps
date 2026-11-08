@@ -369,8 +369,8 @@ export {
 
 // Pasarela autenticada: reenvía operaciones concretas; no almacena datos ni sesiones de las apps.
 const NATIVE_RPC_METHODS={
- tic:new Set(['obtenerHojasCursos','obtenerPartesTIC','guardarCambiosParte','obtenerCredencialPushTic']),
- comedor:new Set(['inicial','previsualizarPedido','guardarPedido','entrarComedor','comprobarSesionComedor','salirComedor','resumen','cambiarPedido','guardarFiado','pagarFiado','avisosComedor','leerAviso','prepararPedido','menuDelDia','alumnosComedorDia','ajustesAvisosComedor','guardarDispositivoComedor','generarPdfComedor'])
+ tic:new Set(['obtenerHojasCursos','obtenerPartesTIC','guardarCambiosParte','obtenerCredencialPushTic','nativeLogout']),
+ comedor:new Set(['inicial','previsualizarPedido','guardarPedido','entrarComedor','comprobarSesionComedor','salirComedor','resumen','cambiarPedido','guardarFiado','pagarFiado','avisosComedor','leerAviso','prepararPedido','menuDelDia','alumnosComedorDia','ajustesAvisosComedor','guardarDispositivoComedor','generarPdfComedor','nativeLogout'])
 };
 async function nativeDataRoute(req,env){
  const match=new URL(req.url).pathname.match(/^\/native\/(tic|comedor)\/rpc$/);
@@ -378,7 +378,7 @@ async function nativeDataRoute(req,env){
  const service=match[1],token=(req.headers.get('Authorization')||'').replace(/^Bearer /,'');
  if(token.length>4096||!/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(token))return json({error:'Conecta tu cuenta del colegio.'},401);
  let claims;try{claims=JSON.parse(new TextDecoder().decode(unb64(token.split('.')[1])));}catch{return json({error:'Sesión no válida.'},401);}
- if(claims.aud!=='svpaulcar-native-'+service||!Number.isInteger(claims.exp)||claims.exp<=now()||!Number.isInteger(claims.iat)||claims.iat>now()+30||claims.exp-claims.iat!==21600)return json({error:'La sesión ha caducado. Vuelve a conectar tu cuenta.'},401);
+ if(claims.aud!=='svpaulcar-native-'+service||!Number.isInteger(claims.exp)||claims.exp<=now()||!Number.isInteger(claims.iat)||claims.iat>now()+30||claims.exp-claims.iat!==30*86400)return json({error:'La sesión ha caducado. Vuelve a conectar tu cuenta.'},401);
  const raw=await req.text();if(raw.length>65536)return json({error:'Solicitud demasiado grande.'},413);
  let input;try{input=JSON.parse(raw);}catch{return json({error:'Solicitud no válida.'},400);}
  if(!NATIVE_RPC_METHODS[service].has(input.method)||!Array.isArray(input.args)||input.args.length>8)return json({error:'Operación no permitida.'},400);
