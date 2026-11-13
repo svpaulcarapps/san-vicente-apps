@@ -1,5 +1,5 @@
-const CACHE='svpaul-shell-v21';
-const SHELL=['./','./index.html','./general-ios.png','./oaoa-biblioteca.png','./comedor.jpg','./base-datos.png','./justificantes.png','./sustituciones.png','./fichaje.png','./filmoteca.png','./parte-tic.png','./parte-mantenimiento.png','./cuaderno-profesor.png','./asistencia-v2.png','./app.js?v=19','./config.js?v=9','./manifest.webmanifest'];
+const CACHE='svpaul-shell-v22';
+const SHELL=['./','./index.html','./general-ios.png','./oaoa-biblioteca.png','./comedor.jpg','./base-datos.png','./justificantes.png','./sustituciones.png','./fichaje.png','./filmoteca.png','./parte-tic.png','./reserva-chromebooks.png','./parte-mantenimiento.png','./cuaderno-profesor.png','./asistencia-v2.png','./app.js?v=19','./config.js?v=9','./manifest.webmanifest'];
 const urls=new Set(SHELL.map(path=>new URL(path,self.registration.scope).href));
 self.addEventListener('install',event=>{event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(SHELL)));self.skipWaiting();});
 self.addEventListener('activate',event=>{event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(key=>(key.startsWith('svp-apps-')||key.startsWith('svpaul-shell-'))&&key!==CACHE).map(key=>caches.delete(key)))).then(()=>self.clients.claim()));});
