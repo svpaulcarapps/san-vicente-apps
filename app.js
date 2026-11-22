@@ -85,7 +85,7 @@ function renderApps(){
  const list=$('private-list');list.replaceChildren();showMessage('private-message',personalApps.length?'':'No hay aplicaciones personales disponibles.');
  personalApps.forEach(app=>{
   const article=document.createElement('article');article.className='card private-card';
-  const link=document.createElement('a');link.className='private-link';link.href=app.url;link.target='_blank';link.rel='noopener noreferrer';link.referrerPolicy='no-referrer';
+  const link=document.createElement('a');link.className='private-link';link.href=app.url;link.rel='noopener noreferrer';link.referrerPolicy='no-referrer';
   const img=document.createElement('img');img.className='app-icon';img.src=personalAppIcon(app);img.alt='';
   const name=document.createElement('strong');name.className='app-name';name.textContent=app.name;link.append(img,name);
   article.append(link);list.append(article);
