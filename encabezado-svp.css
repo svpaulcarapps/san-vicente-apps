@@ -35,6 +35,8 @@
     min-height: 88px !important;
     padding: 8px 12px !important;
   }
+  header:has(> .svp-header-actions) { min-height: 92px !important; }
+  body:has(#svpaul-content[hidden]) .svp-header-secondary { display: none !important; }
   :is(header.svp-app-header, header:has(> .svp-header-actions)) :is(.svp-header-icon, .ico, .ico img, h1, .who, .svp-header-subtitle) {
     box-sizing: border-box !important;
   }
