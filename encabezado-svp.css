@@ -1,0 +1,150 @@
+@media screen {
+  :is(header.svp-app-header, header:has(> .svp-header-actions)) {
+    box-sizing: border-box !important;
+    background: #004379 !important;
+    color: #fff !important;
+    width: min(calc(100vw - 32px), 1088px) !important;
+    max-width: none !important;
+    min-height: 92px !important;
+    margin: 0 calc((100% - min(calc(100vw - 32px), 1088px)) / 2) 16px !important;
+    border: 0 !important;
+    border-bottom: 4px solid #edab00 !important;
+    border-radius: 16px !important;
+    box-shadow: none !important;
+    position: relative !important;
+    inset: auto !important;
+  }
+  body > :is(header.svp-app-header, header:has(> .svp-header-actions)) {
+    margin-top: 16px !important;
+  }
+  body:has(> header.svp-app-header, > header > .svp-header-actions, > main > header > .svp-header-actions) {
+    padding-top: 0 !important;
+  }
+  body > main:has(> header > .svp-header-actions) {
+    padding-top: 16px !important;
+    margin-top: 0 !important;
+  }
+  header.svp-app-header { padding: 0 !important; display: block !important; }
+  header.svp-app-header > .svp-header-inner,
+  header:has(> .svp-header-actions) {
+    box-sizing: border-box !important;
+    display: grid !important;
+    grid-template-columns: 48px minmax(0, 1fr) 72px !important;
+    align-items: center !important;
+    gap: 12px !important;
+    min-height: 88px !important;
+    padding: 8px 12px !important;
+  }
+  :is(header.svp-app-header, header:has(> .svp-header-actions)) :is(.svp-header-icon, .ico, .ico img, h1, .who, .svp-header-subtitle) {
+    box-sizing: border-box !important;
+  }
+  :is(header.svp-app-header .svp-header-icon, header:has(> .svp-header-actions) > :is(.ico, img)) {
+    display: block !important;
+    width: 48px !important;
+    height: 48px !important;
+    border: 0 !important;
+    border-radius: 50% !important;
+    object-fit: cover !important;
+    padding: 0 !important;
+    overflow: hidden;
+    box-shadow: none !important;
+  }
+  header:has(> .svp-header-actions) > .ico > img {
+    display: block;
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover !important;
+  }
+  :is(header.svp-app-header, header:has(> .svp-header-actions)) h1 {
+    color: #fff !important;
+    margin: 0 !important;
+    font: 700 clamp(17px, 3vw, 23px)/1.15 system-ui, sans-serif !important;
+    letter-spacing: normal !important;
+    overflow-wrap: anywhere;
+  }
+  header:has(> .svp-header-actions) .eyebrow { display: none !important; }
+  :is(header.svp-app-header, header:has(> .svp-header-actions)) :is(.who, .svp-header-subtitle) {
+    display: block !important;
+    margin: 4px 0 0 !important;
+    color: #e3edf7 !important;
+    font: 400 12px/1.25 system-ui, sans-serif !important;
+    text-overflow: ellipsis;
+    overflow: hidden;
+    white-space: nowrap;
+  }
+  :is(header.svp-app-header, header:has(> .svp-header-actions)) .svp-header-actions {
+    grid-area: 1 / 3 !important;
+    display: grid !important;
+    grid-template-rows: 40px 28px;
+    justify-items: end !important;
+    align-items: center !important;
+    gap: 2px !important;
+    margin: 0 !important;
+  }
+  :is(header.svp-app-header, header:has(> .svp-header-actions)) .svp-header-actions :is(.svp-header-back, .svp-header-refresh) {
+    box-sizing: border-box !important;
+    place-items: center !important;
+    margin: 0 !important;
+    color: #fff !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    text-decoration: none !important;
+    cursor: pointer;
+  }
+  :is(header.svp-app-header, header:has(> .svp-header-actions)) .svp-header-actions .svp-header-back {
+    grid-row: 1;
+    display: grid !important;
+    width: 44px !important;
+    height: 40px !important;
+    padding: 0 !important;
+    border: 0 !important;
+    border-radius: 50% !important;
+  }
+  .svp-header-actions .svp-header-back > span {
+    display: grid;
+    place-items: center;
+    box-sizing: border-box;
+    width: 27px;
+    height: 27px;
+    border: 1px solid #ffffff66;
+    border-radius: 50%;
+    font: 600 16px/1 system-ui, sans-serif;
+  }
+  :is(header.svp-app-header, header:has(> .svp-header-actions)) .svp-header-actions .svp-header-refresh {
+    grid-row: 2;
+    display: grid;
+    text-align: center;
+    width: 72px !important;
+    height: 28px !important;
+    min-height: 0 !important;
+    padding: 0 !important;
+    border: 1px solid #ffffff66 !important;
+    border-radius: 7px !important;
+    font: 600 12px/1 system-ui, sans-serif !important;
+  }
+  header.svp-app-header .svp-header-actions:not(:has(.svp-header-back)) .svp-header-refresh {
+    grid-row: 1 / 3;
+  }
+  .svp-header-actions .svp-header-back:hover > span,
+  :is(header.svp-app-header, header:has(> .svp-header-actions)) .svp-header-actions .svp-header-refresh:hover {
+    background: #ffffff20 !important;
+  }
+  .svp-header-actions :is(.svp-header-back, .svp-header-refresh):focus-visible {
+    outline: 2px solid #ffcf55 !important;
+    outline-offset: 2px !important;
+  }
+  .svp-header-secondary {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 8px 12px;
+    max-width: 1088px;
+    margin: -6px auto 16px;
+  }
+  .svp-header-secondary > :is(.acc, .svp-app-links) {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+  }
+}
