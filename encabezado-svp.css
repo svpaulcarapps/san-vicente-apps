@@ -3,13 +3,13 @@
     box-sizing: border-box !important;
     background: #004379 !important;
     color: #fff !important;
-    width: min(calc(100vw - 32px), 1088px) !important;
+    width: 100vw !important;
     max-width: none !important;
     min-height: 92px !important;
-    margin: 0 calc((100% - min(calc(100vw - 32px), 1088px)) / 2) 16px !important;
+    margin: 0 !important;
     border: 0 !important;
     border-bottom: 4px solid #edab00 !important;
-    border-radius: 16px !important;
+    border-radius: 0 !important;
     box-shadow: none !important;
     position: relative !important;
     inset: auto !important;
